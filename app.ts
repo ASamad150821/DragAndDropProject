@@ -1,3 +1,48 @@
+//Project State Management
+
+class ProjectState{
+  private projects: any[] = []; //Upon submitting a project, it should be entered as an index in this array here.
+  private static instance: ProjectState;
+  private listeners: any[] = [];
+
+
+  private constructor() {}
+
+  addProject(title: string, description: string, numOfPeople: number) {
+    let projectretrieved = {
+      id: Math.random().toString(),
+      title: title,
+      description: description, 
+      numOfPeople: numOfPeople
+    }
+
+    this.projects.push(projectretrieved)
+
+    for(let listenerFn of this.listeners)
+    {
+      listenerFn(this.projects.slice());
+    }
+  }
+
+  static getInstance() {
+   
+    if(this.instance) {
+      return this.instance;
+    }
+   
+    this.instance = new ProjectState();
+    return this.instance
+  }
+
+
+  addListenerFunction(listenerfn: Function) {
+    this.listeners.push(listenerfn);
+  }
+
+}
+
+let projectState1 = ProjectState.getInstance();
+
 //autobind director
 function autobind(target: any, methodName: any, descriptor: PropertyDescriptor) {
   let originalMethod =  descriptor.value;
@@ -57,7 +102,7 @@ function autobind(target: any, methodName: any, descriptor: PropertyDescriptor) 
     hostElement: HTMLDivElement;
     sectionElement: HTMLElement;
     private type : 'active' | 'finished';
-  
+    private assignedProjects: any[];
   
     constructor(type: 'active' | 'finished') {
       let templateElretrieved = document.getElementById("project-list");
@@ -75,12 +120,31 @@ function autobind(target: any, methodName: any, descriptor: PropertyDescriptor) 
       this.sectionElement = improvedHTMLContent.firstElementChild as HTMLElement;
   
       this.type = type;
-  
       this.sectionElement.id = `${this.type}-projects`;
+      this.assignedProjects = [];
+
+      //After initialising all of the variables needed to render project content onto the app, but just before attaching onto the app and executing the method to actually render project content
+
+      projectState1.addListenerFunction((projects: any[]) => {
+        this.assignedProjects = projects;
+        this.renderProjects();
+      });
+
       this.attach();
       this.renderContent();
+    };
+
+    private renderProjects() {
+
+     let ListElementFoundByItsID = document.getElementById(`${this.type}-projects-lists`)! as HTMLUListElement;
+     for(let prjItem of this.assignedProjects) {
+     let newproject = document.createElement('li');
+     newproject.innerHTML = prjItem.title;
+     ListElementFoundByItsID.appendChild(newproject);
+     }
+
     }
-  
+
     private renderContent() {
       let listID = `${this.type}-projects-lists`;
       this.sectionElement.querySelector('ul')!.id = listID;
@@ -209,8 +273,8 @@ function autobind(target: any, methodName: any, descriptor: PropertyDescriptor) 
         let title = userInput[0];
         let desc = userInput[1];
         let people = userInput[2];
-  
-        console.log(title, desc, people);
+        
+        projectState1.addProject(title, desc, people);
       }
   
       this.ClearFields();
@@ -250,4 +314,4 @@ function autobind(target: any, methodName: any, descriptor: PropertyDescriptor) 
   let activeProjectList = new ProjectList('active');
   let finishedProjectList = new ProjectList('finished');
   
-  
+
