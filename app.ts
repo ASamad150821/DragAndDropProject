@@ -1,20 +1,31 @@
+//Project Type 
+enum ProjectStatus {
+  Active, //0
+  Finished //1
+};
+
+class Project {
+
+  constructor(public id: string, public title: string, public description: string, public numOfPeople: number, public status: ProjectStatus) {
+
+  }
+
+}
+//
+
 //Project State Management
 
-class ProjectState{
-  private projects: any[] = []; //Upon submitting a project, it should be entered as an index in this array here.
-  private static instance: ProjectState;
-  private listeners: any[] = [];
+type Listener = (items: Project[]) => void;
 
+class ProjectState{
+  private projects: Project[] = []; //Upon submitting a project, it should be entered as an index in this array here.
+  private static instance: ProjectState;
+  private listeners: Listener[] = [];
 
   private constructor() {}
 
   addProject(title: string, description: string, numOfPeople: number) {
-    let projectretrieved = {
-      id: Math.random().toString(),
-      title: title,
-      description: description, 
-      numOfPeople: numOfPeople
-    }
+    let projectretrieved = new Project(Math.random().toString(), title, description, numOfPeople, ProjectStatus.Active)
 
     this.projects.push(projectretrieved)
 
@@ -35,7 +46,7 @@ class ProjectState{
   }
 
 
-  addListenerFunction(listenerfn: Function) {
+  addListenerFunction(listenerfn: Listener) {
     this.listeners.push(listenerfn);
   }
 
@@ -102,7 +113,7 @@ function autobind(target: any, methodName: any, descriptor: PropertyDescriptor) 
     hostElement: HTMLDivElement;
     sectionElement: HTMLElement;
     private type : 'active' | 'finished';
-    private assignedProjects: any[];
+    private assignedProjects: Project[];
   
     constructor(type: 'active' | 'finished') {
       let templateElretrieved = document.getElementById("project-list");
@@ -125,8 +136,18 @@ function autobind(target: any, methodName: any, descriptor: PropertyDescriptor) 
 
       //After initialising all of the variables needed to render project content onto the app, but just before attaching onto the app and executing the method to actually render project content
 
-      projectState1.addListenerFunction((projects: any[]) => {
-        this.assignedProjects = projects;
+      projectState1.addListenerFunction((projects: Project[]) => {
+      
+        let filteredProjects = projects.filter(project => {
+          if(this.type === 'active')
+          {
+            return project.status === ProjectStatus.Active
+          }
+
+         return project.status === ProjectStatus.Finished;
+        })
+
+        this.assignedProjects = filteredProjects;
         this.renderProjects();
       });
 
@@ -137,6 +158,9 @@ function autobind(target: any, methodName: any, descriptor: PropertyDescriptor) 
     private renderProjects() {
 
      let ListElementFoundByItsID = document.getElementById(`${this.type}-projects-lists`)! as HTMLUListElement;
+
+     ListElementFoundByItsID.innerHTML = '';
+
      for(let prjItem of this.assignedProjects) {
      let newproject = document.createElement('li');
      newproject.innerHTML = prjItem.title;
@@ -313,5 +337,6 @@ function autobind(target: any, methodName: any, descriptor: PropertyDescriptor) 
   let prjInput = new ProjectInput();
   let activeProjectList = new ProjectList('active');
   let finishedProjectList = new ProjectList('finished');
-  
 
+
+  
