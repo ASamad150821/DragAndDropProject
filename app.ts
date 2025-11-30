@@ -15,9 +15,9 @@ class Project {
 
 //Project State Management
 
-type Listener = (items: Project[]) => void;
+//type Listener = (items: Project[]) => void;
 
-class ProjectState{
+/*class ProjectState{
   private projects: Project[] = []; //Upon submitting a project, it should be entered as an index in this array here.
   private static instance: ProjectState;
   private listeners: Listener[] = [];
@@ -50,7 +50,59 @@ class ProjectState{
     this.listeners.push(listenerfn);
   }
 
+}*/
+
+/*type Listener1 = (items: Project[]) => void;
+
+class State1{
+  private listeners: Listener1[] = [];
+
+  addListenerFunction(listenerfn: Listener1) {
+    this.listeners.push(listenerfn);
+  }
+} */
+
+type Listener<T> = (items: T[]) => void;
+
+class State<T> {
+  protected listeners: Listener<T>[] = [];
+
+  addListenerFunction(listenerfn: Listener<T>) {
+    this.listeners.push(listenerfn);
+  }
 }
+
+class ProjectState extends State<Project>{
+  private projects: Project[] = []; //Upon submitting a project, it should be entered as an index in this array here.
+  private static instance: ProjectState;
+
+  private constructor() {
+    super();
+  }
+
+  static getInstance() {
+   
+    if(this.instance) {
+      return this.instance;
+    }
+   
+    this.instance = new ProjectState();
+    return this.instance
+  }
+
+  addProject(title: string, description: string, numOfPeople: number) {
+    let projectretrieved = new Project(Math.random().toString(), title, description, numOfPeople, ProjectStatus.Active)
+
+    this.projects.push(projectretrieved)
+
+    for(let listenerFn of this.listeners)
+    {
+      listenerFn(this.projects.slice());
+    }
+  }
+
+}
+
 
 let projectState1 = ProjectState.getInstance();
 
@@ -107,51 +159,58 @@ function autobind(target: any, methodName: any, descriptor: PropertyDescriptor) 
     return isValid;
   }
   //
-  
-  class ProjectList {
+
+  //Component Class - responsible for general rendering and attachment of a component onto the application
+
+  abstract class Component <T extends HTMLElement, U extends HTMLElement> {
     templateElement: HTMLTemplateElement;
-    hostElement: HTMLDivElement;
-    sectionElement: HTMLElement;
-    private type : 'active' | 'finished';
-    private assignedProjects: Project[];
-  
-    constructor(type: 'active' | 'finished') {
-      let templateElretrieved = document.getElementById("project-list");
-      let hostElretrieved = document.getElementById("app");
-  
+    hostElement: T;
+    element: U;
+    insertAtBeginning1: boolean;
+
+    constructor(templateID: string, hostElementID: string, insertAtBeginning2: boolean, newElementID?: string,) {
+      let templateElretrieved = document.getElementById(templateID);
+      let hostElretrieved = document.getElementById(hostElementID);
+      this.insertAtBeginning1 = insertAtBeginning2;
+
       if(templateElretrieved && hostElretrieved) {
         this.templateElement = templateElretrieved as HTMLTemplateElement;
-        this.hostElement = hostElretrieved as HTMLDivElement;
+        this.hostElement = hostElretrieved as T;
       }
       else {
         throw new Error("null value - unable to retrieve either the form or the application")
       }
+
+      let copiedHTMLContent = document.importNode(this.templateElement.content, true);
+      this.element = copiedHTMLContent.firstElementChild as U;
+      
+      if(newElementID) {
+        this.element.id = newElementID;
+      }
+
+      this.attach(this.insertAtBeginning1);
+    }
+
+    private attach(insertAtBeginning3: boolean) {
+      this.hostElement.insertAdjacentElement(insertAtBeginning3 ? 'afterbegin' : 'beforeend', this.element);
+    }
+
+    abstract configure(): void;
+    abstract renderContent(): void;
+  }
+
+  class ProjectList extends Component<HTMLDivElement, HTMLElement> {
+ 
+    private assignedProjects: Project[];
   
-      let improvedHTMLContent = document.importNode(this.templateElement.content, true);
-      this.sectionElement = improvedHTMLContent.firstElementChild as HTMLElement;
-  
-      this.type = type;
-      this.sectionElement.id = `${this.type}-projects`;
+    constructor(private type: 'active' | 'finished') {
+      
+      super('project-list', 'app', false, `${type}-projects`);
       this.assignedProjects = [];
 
       //After initialising all of the variables needed to render project content onto the app, but just before attaching onto the app and executing the method to actually render project content
 
-      projectState1.addListenerFunction((projects: Project[]) => {
-      
-        let filteredProjects = projects.filter(project => {
-          if(this.type === 'active')
-          {
-            return project.status === ProjectStatus.Active
-          }
-
-         return project.status === ProjectStatus.Finished;
-        })
-
-        this.assignedProjects = filteredProjects;
-        this.renderProjects();
-      });
-
-      this.attach();
+      this.configure();
       this.renderContent();
     };
 
@@ -169,49 +228,46 @@ function autobind(target: any, methodName: any, descriptor: PropertyDescriptor) 
 
     }
 
-    private renderContent() {
+    renderContent() {
       let listID = `${this.type}-projects-lists`;
-      this.sectionElement.querySelector('ul')!.id = listID;
-      this.sectionElement.querySelector('h2')!.innerHTML = this.type.toUpperCase() + ' PROJECTS';
+      this.element.querySelector('ul')!.id = listID;
+      this.element.querySelector('h2')!.innerHTML = this.type.toUpperCase() + ' PROJECTS';
     } 
   
-  
-    private attach() {
-      this.hostElement.insertAdjacentElement('beforeend', this.sectionElement);
+    configure(): void {
+      projectState1.addListenerFunction((projects: Project[]) => {
+      
+        let filteredProjects = projects.filter(project => {
+          if(this.type === 'active')
+          {
+            return project.status === ProjectStatus.Active
+          }
+
+         return project.status === ProjectStatus.Finished;
+        })
+
+        this.assignedProjects = filteredProjects;
+        this.renderProjects();
+      });
     }
+  
   }
   
   
-  class ProjectInput {
-    templateElement: HTMLTemplateElement;
-    hostElement: HTMLDivElement;
-    formElement: HTMLFormElement;
+  class ProjectInput extends Component<HTMLDivElement, HTMLFormElement> {
+
     titleInputElement: HTMLInputElement;
     descriptionInputElement: HTMLInputElement;
     peopleInputElement: HTMLInputElement;
   
     constructor() {
-  
-      let templateElretrieved = document.getElementById("project-input");
-      let hostElretrieved = document.getElementById("app");
-  
-      if(templateElretrieved && hostElretrieved) {
-        this.templateElement = templateElretrieved as HTMLTemplateElement;
-        this.hostElement = hostElretrieved as HTMLDivElement;
-      }
-      else {
-        throw new Error("null value - unable to retrieve either the form or the application")
-      }
-  
-      let improvedHTMLContent = document.importNode(this.templateElement.content, true);
-      this.formElement = improvedHTMLContent.firstElementChild as HTMLFormElement;
-  
-      this.titleInputElement = this.formElement.querySelector("#title") as HTMLInputElement;
-      this.descriptionInputElement = this.formElement.querySelector("#description") as HTMLInputElement;
-      this.peopleInputElement = this.formElement.querySelector("#people") as HTMLInputElement;
-  
-      this.configure2()
-      this.attach();
+      super("project-input", "app", true);
+
+      this.titleInputElement = this.element.querySelector("#title") as HTMLInputElement;
+      this.descriptionInputElement = this.element.querySelector("#description") as HTMLInputElement;
+      this.peopleInputElement = this.element.querySelector("#people") as HTMLInputElement;
+
+      this.configure()
     }
   
     
@@ -247,7 +303,6 @@ function autobind(target: any, methodName: any, descriptor: PropertyDescriptor) 
   
     return isValid;
   }
-  
   
     private gatherUserInput() : [string, string, number] | Error {
       let titleEnteredAsString = this.titleInputElement.value
@@ -304,8 +359,8 @@ function autobind(target: any, methodName: any, descriptor: PropertyDescriptor) 
       this.ClearFields();
     }
   
-    private configure2() {
-      this.formElement.addEventListener('submit', this.submitHandler2);
+    configure() {
+      this.element.addEventListener('submit', this.submitHandler2);
     }  
   
    /* private configure1() {
@@ -327,10 +382,8 @@ function autobind(target: any, methodName: any, descriptor: PropertyDescriptor) 
       private configure3() {
         this.formElement.addEventListener('submit', this.submitHandler3.bind(this));
       }  */
-  
-    private attach() {
-      this.hostElement.insertAdjacentElement('afterbegin', this.formElement);
-    }
+
+    renderContent(): void {} ;
   
   }
   
